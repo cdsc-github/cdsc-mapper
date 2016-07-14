@@ -1,0 +1,53 @@
+##
+## compiler.desc: This file is part of the CDSCmp project.
+##
+## CDSCmp: A compiler suite for software mapping on heterogeneous
+## architectures
+##
+## Copyright (C) 2012,2013 University of California Los Angeles
+##
+## This program can be redistributed and/or modified under the terms
+## of the license specified in the LICENSE.txt file at the root of the
+## project.
+##
+## Contact: Jason Cong <cong@cs.ucla.edu>
+##
+##
+## @file: compiler.desc
+## @author: Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+##
+
+[cnc]
+CPU: compile_cncc.sh
+
+[cdscgl]
+CPU: compile_cdscgrhc.sh
+
+[hc]
+CPU: compile_hc_c.sh
+
+[sdsl.c]
+CPU: compile_sdsl_c_polyopt.sh
+GPU: compile_sdsl_gpu.sh
+FPGA: compile_sdsl_c_polyhls.sh
+
+[c]
+CPU: compile_c_cpu.sh
+FPGA: compile_c_fpga.sh
+
+[cpp]
+CPU: compile_cpp_cpu.sh
+
+[cu]
+GPU: compile_cuda.sh
+
+[o]
+CPU: compile_link.sh
+
+
+[default-compilers]
+cuda-compiler: nvcc
+c-compiler: gcc
+cpp-compiler: g++
+
+

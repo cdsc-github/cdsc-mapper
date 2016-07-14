@@ -1,0 +1,430 @@
+#!/usr/bin/perl -w
+##
+## cdscmp-make: This file is part of the CDSCmp project.
+##
+## CDSCmp: A compiler suite for software mapping on heterogeneous
+## architectures
+##
+## Copyright (C) 2012,2013 University of California Los Angeles
+##
+## This program can be redistributed and/or modified under the terms
+## of the license specified in the LICENSE.txt file at the root of the
+## project.
+##
+## Contact: Jason Cong <cong@cs.ucla.edu>
+##
+##
+## @file: cdscmp-make
+## @author: Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+##
+
+use Switch;
+use Term::ANSIColor;
+
+## Some global variables.
+$BDIR_MK = ".";
+$INST_MK = ".";
+$CONFIGURE = "";
+$DRIVER = "";
+$ENVFILE = "";
+
+$BUILDED_LIST = "";
+
+$SH_EXP_CMD = "export";
+
+$DEBUG_LEVEL = 1;
+
+
+sub print_config
+{
+    my (%config) = @_;
+    ## Print config table.
+    for $soft (keys %config) {
+	for $field (keys %{$config{$soft}}) {
+	    $value = $config{$soft}{$field};
+	    print "$soft: $field -> $value\n";
+	}
+    }
+}
+
+sub print_map
+{
+    my (%config) = @_;
+    ## Print config table.
+    for $soft (keys %config) {
+	print "$soft: $config{$soft}\n";
+    }
+}
+
+
+sub make_environment
+{
+    my (@config) = @_;
+    my $env_val = "";
+    foreach (@config) 
+    {
+	$env_val = $env_val . "$SH_EXP_CMD ". $_ . ";";
+    }
+    return $env_val;
+}
+
+
+sub read_config_file
+{
+    my ($file) = @_;
+    my %config_data;
+    open FILE, "$file" or die $!;
+    my $mode = "";
+    my $line;
+    while (<FILE>) {
+	if ($_ !~ /^#|^[\s\t]*\n/) {
+	    $_ =~ s/(.*)\n/$1/g;
+	    if ($_ =~ /^\[.*\]/) {
+		$mode = $_;
+		$mode =~ s/^\[(.*)\].*/$1/g;
+	    }
+	    else {
+		my @entry = split(/:/, $_);
+		$entry[0] =~ s/\s//g;
+		my $data = $entry[1];
+		my $i;
+		for ($i = 2; $i <= $#entry; $i++) {
+		    $data = $data . ":" . $entry[$i];
+		}
+		$config_data{$mode}{$entry[0]} = $data;
+	    }
+	}
+    }
+
+    #print_config(%config_data);
+
+    return %config_data;
+}
+
+
+sub read_env_file
+{
+    my ($file) = @_;
+    my @env_data;
+    open FILE, "$file" or die $!;
+    while (<FILE>) {
+	if ($_ !~ /^#|^[\s\t]*\n/) {
+	    $_ =~ s/(.*)\n/$1/g;
+	    $_ =~ s/\@/\$/g;
+	    push (@env_data, $_);
+	}
+    }
+
+    return @env_data;
+}
+
+
+sub get_all_soft
+{
+    my %driver_data = read_config_file($DRIVER);
+    my $softlist = $driver_data{"cdscmp-driver"}{"software-versions"};
+    $softlist =~ s/\s+/ /g;
+    $softlist =~ s/^\s//g;
+    return split(/ /, $softlist);
+}
+
+
+sub needs_install
+{
+    return 1;
+}
+
+sub exec_custom_command
+{
+    my ($srcdir, $instdir, $env_decl, $command, $soft, %softinfo) = @_;
+    my $cmd_args = "";
+    my $val = 0;
+    if (defined($softinfo{$command})) {
+	$cmd_args = $softinfo{$command};
+	## Replace any occurence of $cdscmp_srcdir and
+	## $cdscmp_app_installprefix.
+    	$cmd_args =~ s/\$cdscmp_srcdir/$INST_MK/g;
+    	$cmd_args =~ s/\$cdscmp_app_installprefix/$instdir/g;
+	print "[CDSCmp] $command in $srcdir\n";
+	if ($DEBUG_LEVEL > 0) {
+	    print "system> $env_decl cd $srcdir && $cmd_args\n";
+	}
+	if ($DEBUG_LEVEL < 42) {
+	    ## Execute the actual system command.
+	    $val = system("$env_decl cd $srcdir &&  $cmd_args");
+	    die "[CDSCmp] Error in $command of $soft\n" if ($val != 0);
+	}
+	$force_configure = "yes";
+    }
+}
+
+
+sub export_env
+{
+    my ($instdir, %softinfo) = @_;
+    if (defined($softinfo{"export-env"})) {
+	my $cmd_args = $softinfo{"export-env"};
+	my @args = split(/;/, $cmd_args);
+	my $i;
+	for ($i = 0; $i <= $#args; $i++) {
+	    my $arg = $args[$i];
+	    ## Replace any occurence of $cdscmp_srcdir and
+	    ## $cdscmp_app_installprefix.
+	    $arg =~ s/\$cdscmp_srcdir/$INST_MK/g;
+	    $arg =~ s/\$cdscmp_app_installprefix/$instdir/g;
+	    $grep_res = `grep "$arg" $ENV_FILE`;
+	    if ($grep_res eq "") {
+		$val = system("echo $arg >> $ENV_FILE");
+	    }
+	}
+    }
+}
+
+sub get_import_env
+{
+    my ($instdir, %softinfo) = @_;
+    my $env_args = "";
+    if (defined($softinfo{"import-env"})) {
+	$env_args = $softinfo{"import-env"};
+	## Replace any occurence of $cdscmp_srcdir and
+	## $cdscmp_app_installprefix.
+    	$env_args =~ s/\$cdscmp_srcdir/$INST_MK/g;
+    	$env_args =~ s/\$cdscmp_app_installprefix/$instdir/g;
+	my @args = split(/;/, $env_args);
+	my $i;
+	for ($i = 0; $i <= $#args; $i++) {
+	    $args[$i] = $SH_EXP_CMD . " " . $args[$i];
+	}
+	$env_args = join (';', @args);
+	$env_args = $env_args . ";";
+    }
+    return $env_args;
+}
+
+
+sub make_soft_custom
+{
+    my ($soft, $force, %softinfo) = @_;
+    my $softbootstrap = "";
+    my $category = $softinfo{"category"};
+    $category =~ s/\s//g;
+    my $prefix = $BDIR_MK . "/" . $category;
+    my $srcdir = $prefix . "/" . $soft;
+    ## Get Configure opts.
+    my $mod = $softinfo{"module"};
+    $mod =~ s/\s//g;
+    my $instdir = $INST_MK . "/" . $category . "/install-$mod";
+
+    ## 1) Collect all env. variables. Use temp. file for the env.
+    my @env_data = read_env_file($ENV_FILE);
+    #print_map(%env_data);
+
+    ## 2) Form the environment for shell commands.
+    my $env_decl = make_environment(@env_data);
+
+    ## 2.b) get the local environment.
+    my $local_env = get_import_env($instdir,%softinfo);
+    $local_env =~ s/\@/\$/g;
+    $env_decl = $env_decl . $local_env;
+
+    ## 3) Execute boostrap command, if any.
+    exec_custom_command($srcdir, $instdir, $env_decl, "bootstrap-command",
+			$soft, %softinfo);
+    ## 4) Execute configure command, if any.
+    exec_custom_command($srcdir, $instdir, $env_decl, "configure-command",
+			$soft, %softinfo);
+    ## 5) Execute build command, if any.
+    exec_custom_command($srcdir, $instdir, $env_decl, "build-command",
+			$soft, %softinfo);
+    ## 5) Execute install command, if any.
+    exec_custom_command($srcdir, $instdir, $env_decl, "install-command",
+			$soft, %softinfo);
+
+    ## 6) Export the environment.
+    export_env($instdir, %softinfo);
+
+    system("echo \"$soft\" >> $BDIR_MK/driver/config/install_report.log");
+}
+
+
+sub make_soft
+{
+    my ($soft, $force, %softinfo) = @_;
+
+    if (defined($softinfo{"build-method"}) &&
+	$softinfo{"build-method"} =~ /custom/) {
+	make_soft_custom($soft, $force, %softinfo);
+	return;
+    }
+    else
+    {
+	print $softinfo{"build-method"}."\n";
+	print "[ERROR] not supported yet";
+	return;
+    }
+
+    my $softbootstrap = "";
+    my $category = $softinfo{"category"};
+    $category =~ s/\s//g;
+    my $prefix = $BDIR_MK . "/" . $category;
+    my $srcdir = $prefix . "/" . $soft;
+    ## Get Configure opts.
+    my $mod = $softinfo{"module"};
+    $mod =~ s/\s//g;
+    my $instdir = $INST_MK . "/" . $category . "/install-$mod";
+    my $config_args = "";
+    if (defined($softinfo{"configure"})) {
+	$config_args = $softinfo{"configure"};
+	$config_args =~ s/\$cdscmpsrcdir/$INST_MK/g;
+    }
+
+    ## Bootstrap.
+    my $force_configure = "no";
+    my $val = 0;
+    if (defined($softinfo{"bootstrap"})) {
+	$softbootstrap = $softinfo{"bootstrap"};
+	$softbootstrap =~ s/\$cdscmpsrcdir/$INST_MK/g;
+	$softbootstrap =~ s/^\s//g;
+	$res = `find $srcdir -maxdepth 1 -name "*configure"`;
+	if (($res eq "") || ($force eq "force-hard") || ($config_args =~ /disabled$/)) {
+	    print "[CDSCmp] Bootstrapping in $srcdir\n";
+	    $val = system("cd $srcdir && $softbootstrap");
+	    $force_configure = "yes";
+	}
+    }
+    ## Configure exec.
+    if ($config_args =~ /disabled$/) {
+	return;
+    }
+    die "Error in bootsraping of $soft\n" if ($val != 0);
+
+    $res = `find $srcdir -maxdepth 1 -name "*Makefile"`;
+    if ($res eq "" || $force_configure eq "yes") {
+	print "[CDSCmp] Configuring $soft in $srcdir with --disable-static --enable-shared --prefix=$instdir $config_args\n";
+	$val = system("cd $srcdir && ./configure --disable-static --enable-shared --prefix=$instdir $config_args");
+	die "Error in configuration of $soft\n" if ($val != 0);
+    }
+
+    $needed_pu = `find $BDIR_MK/driver/cdscmp-utils -newer $INST_MK/driver/install-cdscmp/include/cdscmp-utils 2>&1 | grep -v "/\.svn/"`;
+    $needs_build = `find $srcdir -newer $instdir/include/$mod 2>&1| grep -v "/\.svn/"`;
+
+    $needs_build = "yes" if (! ($needed_pu eq ""));
+    if ($needs_build eq "") {
+	if (defined($softinfo{"make-depends"})) {
+	    $softinfo{"make-depends"} =~ s/\s+/ /g;
+	    $softinfo{"make-depends"} =~ s/^\s//g;
+	    @dep_modules = split(/ /, $softinfo{"make-depends"});
+	    my $i;
+	    for ($i = 0; $i <= $#dep_modules; $i++) {
+		$needs_build = "yes" if ($BUILDED_LIST =~ /$dep_modules[$i]/);
+	    }
+	}
+    }
+    if (! ($needs_build eq "") || ($force eq "force")) {
+	$val = system("cd $srcdir && make");
+	die "Error in making of $soft\n" if ($val != 0);
+	if (needs_install($srcdir,$instdir)) {
+	    $val = system("cd $srcdir && make install");
+	    die "Error in making install of $soft\n" if ($val != 0);
+	}
+	$BUILDED_LIST = $BUILDED_LIST . " " . $softinfo{"module"};
+    }
+    else {
+	print "[CDSCmp-make] $soft already up-to-date\n";
+    }
+}
+
+
+sub order_by_deps
+{
+    my ($mode, %config) = @_;
+    my @soft = get_all_soft($mode);
+    my $i;
+    my $j;
+    my $deps_i;
+    my $deps_j;
+    my $mod_i;
+    my $mod_j;
+
+    ## I am really lazy...
+    my $converged;
+    do {
+	$converged = 1;
+	for ($i = 0; $i < $#soft; $i++) {
+	    if (defined($config{$soft[$i]}{"make-depends"})) {
+		$deps_i = $config{$soft[$i]}{"make-depends"};
+		$deps_i =~ s/\s+/ /g;
+		$deps_i =~ s/^\s//g;
+	    }
+	    else {
+		$deps_i = "";
+	    }
+	    $mod_i = $config{$soft[$i]}{"module"};
+	    $mod_i =~ s/ //g;
+	    for ($j = $i + 1; $j <= $#soft; $j++) {
+		if (defined($config{$soft[$j]}{"make-depends"})) {
+		    $deps_j = $config{$soft[$j]}{"make-depends"};
+		    $deps_j =~ s/\s+/ /g;
+		    $deps_j =~ s/^\s//g;
+		}
+		else {
+		    $deps_j = "";
+		}
+		$mod_j = $config{$soft[$j]}{"module"};
+		$mod_j =~ s/ //g;
+		if ($deps_i =~ $mod_j) {
+		    my $tmp = $soft[$i];
+		    $soft[$i] = $soft[$j];
+		    $soft[$j] = $tmp;
+		    $deps_i = $deps_j;
+		    $mod_i = $mod_j;
+		    $converged = 0;
+		}
+	    }
+	}
+    }
+    until ($converged != 0);
+
+    return @soft;
+}
+
+
+sub make_all_soft
+{
+    print "[CDSCmp-make] Making all required soft\n";
+    my ($mode, $force, %config) = @_;
+    my @soft = order_by_deps($mode, %config);
+    my $i;
+
+    for ($i = 0; $i <= $#soft; $i++) {
+	make_soft($soft[$i], $force, %{$config{$soft[$i]}});
+    }
+}
+
+
+sub make
+{
+    my ($basedir, $inst_prefix, $soft, $force) = @_;
+    $BDIR_MK = $basedir;
+    $INST_MK = $inst_prefix;
+    $CONFIGURE = "$BDIR_MK/driver/config/configure.cfg";
+    $ENV_FILE = "$BDIR_MK/driver/config/env.sh";
+    $DRIVER = "$BDIR_MK/driver/config/driver.cfg";
+    my %config_data = read_config_file($CONFIGURE);
+
+    if ($soft eq "all") {
+	print (colored ("[CDSCmp-make] Full Make of CDSCmp. This takes a while...", "green green"), "\n");
+	#make_cdscmp_utils();
+	make_all_soft($mode, $force, %config_data);
+	#make_cdscmp();
+    }
+    else {
+	print (colored ("[CDSCmp-make] Building $soft for CDSCmp. This takes a while...", "green green"), "\n");
+	if (! defined($config_data{$soft})) {
+	    die "Unkown software $soft. Please update config/configure.cfg\n";
+	}
+	make_soft($soft, $force, %{$config_data{$soft}});
+    }
+
+     print (colored ("[CDSCmp-make] Done", "green green"), "\n");
+}

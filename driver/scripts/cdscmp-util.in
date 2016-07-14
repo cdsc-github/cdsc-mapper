@@ -1,0 +1,196 @@
+#!/usr/bin/perl -w
+##
+## cdscmp-util.in: This file is part of the CDSCmp project.
+##
+## CDSCmp: A compiler suite for software mapping on heterogeneous
+## architectures
+##
+## Copyright (C) 2012,2013 University of California Los Angeles
+##
+## This program can be redistributed and/or modified under the terms
+## of the license specified in the LICENSE.txt file at the root of the
+## project.
+##
+## Contact: Jason Cong <cong@cs.ucla.edu>
+##
+##
+## @file: cdscmp-util.in
+## @author: Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+##
+
+use Switch;
+
+## Some global variables.
+#$BASEDIR = "@abs_top_srcdir@";
+#$INST_PREFIX = "@install_prefix@";
+$BASEDIR = "@abs_top_srcdir@";
+$DRIVERDIR = "@abs_top_srcdir@";
+$DRIVERDIR = $DRIVERDIR . "/driver";
+$INST_PREFIX = "@install_prefix@";
+
+## Include command scripts.
+do "$DRIVERDIR/scripts/cdscmp-alternate";
+do "$DRIVERDIR/scripts/cdscmp-checkout";
+do "$DRIVERDIR/scripts/cdscmp-make";
+do "$DRIVERDIR/scripts/cdscmp-compileproj";
+
+
+sub print_help
+{
+    print "Usage: cdscmp-util <command>\n";
+    print "<command>: --compile-proj [project-file]\n";
+    print "<command>: --pass [pass name] <args>\n";
+    print "           passes available: clean, cncc, cdscgrhc, hcc, cc, cxx, cuda,\n";
+    print "           sdsl-cpu, sdsl-cpu-poly, sdsl-gpu, sdsl-fpga, link, run\n";
+    print "           c-poly, c-fpga, custom, polyopt, polyhls\n";
+    print "<command>: --help\n";
+    print "\n";
+    print "Developer commands:\n";
+    print "<command>: --upgrade [software-name]\n";
+    print "<command>: --alternate [configuration-name]\n";
+    print "<command>: --checkout [software-name]\n";
+    print "<command>: --check-diff [software-name]\n";
+    print "<command>: --make [software-name]\n";
+    print "<command>: --list-modules\n";
+    print "<command>: --buildall\n";
+}
+
+
+# args: command line options
+sub parse_args
+{
+    my $i;
+    my @args = @_;
+    if ($#args == -1) {
+	print_help;
+	exit 1;
+    }
+    for($i = 0; $i <= $#args; $i++) {
+	switch ($args[$i]) {
+	    case "help" { print_help; exit 1; }
+	    case "-help" { print_help; exit 1; }
+	    case "--help" { print_help; exit 1; }
+	    case "--alternate" {
+		die "Missing argument\n" if ($i eq $#args);
+		alternate($BASEDIR, $args[$i + 1]);
+		checkout($BASEDIR, "all");
+		make($BASEDIR, $INST_PREFIX, "all", "force");
+		my $ret;
+		if ($args[$i + 1] =~ "devel") {
+		    $ret = system("cd $BASEDIR && CPPFLAGS=-DHAVE_CDSCMP_DEVEL make install");
+		}
+		else {
+		    $ret = system("cd $BASEDIR && make install");
+		}
+		die "[CDSCmp] fatal error\n" if ($ret != 0);
+		$i = $#args;
+	    }
+	    case "--checkout" {
+		if ($i < $#args) {
+		    checkout($BASEDIR, $args[$i + 1]);
+		}
+		else {
+		    checkout($BASEDIR, "all");
+		}
+		$i = $#args;
+	    }
+	    case "--check-diff" {
+		if ($i < $#args) {
+		    checkdiff($BASEDIR, $args[$i + 1]);
+		}
+		else {
+		    checkdiff($BASEDIR, "all");
+		}
+		$i = $#args;
+	    }
+	    case "--compile-proj" {
+		if ($i < $#args) {
+		    compile_proj($BASEDIR, $args[$i + 1], @args);
+		}
+		$i = $#args;
+	    }
+	    case "--pass" {
+		if ($i < $#args) {
+		    compile_one($BASEDIR, $args[$i + 1], @args);
+		}
+		$i = $#args;
+	    }
+	    case "--make" {
+		if ($i < $#args) {
+		    make($BASEDIR, $INST_PREFIX, $args[$i + 1], "");
+		}
+		else {
+		    make($BASEDIR, $INST_PREFIX, "all", "");
+		}
+		$i = $#args;
+	    }
+	    case "--buildall" {
+		make($BASEDIR, $INST_PREFIX, "all", "");
+		my $ret = system ("cd $BASEDIR && make install");
+		die "[CDSCmp] fatal error\n" if ($ret != 0);
+		$i = $#args;
+	    }
+	    case "--list-modules" {
+		my $CONFIG_DRIVER = "$BASEDIR/driver/config/driver.cfg";
+		my %config_driver = read_config_file($CONFIG_DRIVER);
+		my $softlist = $config_driver{"cdscmp-driver"}{"software-versions"};
+		$softlist =~ s/\s+/ /g;
+		$softlist =~ s/^\s//g;
+		my @list = split(/ /, $softlist);
+		print "[CDSCmp] List of modules available: ";
+		print join(", ", @list);
+		print "\n";
+		$i = $#args;
+	    }
+	    case "--upgrade" {
+		if ($i < $#args) {
+		    checkout($BASEDIR, $args[$i + 1]);
+		    make($BASEDIR, $INST_PREFIX, $args[$i + 1], "");
+		}
+		else {
+		    print "[CDSCmp] Upgrade to the lastest CDSCmp version...\n";
+		    my $CONFIG_DRIVER = "$BASEDIR/driver/config/driver.cfg";
+		    my %config_driver = read_config_file($CONFIG_DRIVER);
+		    my $curmode = $config_driver{"cdscmp-driver"}{"configuration"};
+		    $curmode =~ s/\s//g;
+		    if ($curmode =~ "devel") {
+			system("cd $BASEDIR && svn up --username lppcc --password lppcc");
+		    }
+		    else {
+			system("rsync -az http://www.cse.ohio-state.edu/~pouchet/software/cdscmp/download/released/ $BASEDIR/");
+		    }
+		    my $ret;
+		    if ($curmode =~ "devel") {
+			$ret = system("cd $BASEDIR && CPPFLAGS=-DHAVE_CDSCMP_DEVEL make install");
+		    }
+		    else {
+			$ret = system("cd $BASEDIR && make install");
+		    }
+		    $curmode = "stable" if ($curmode =~ "local");
+		    alternate($BASEDIR, $curmode);
+		    checkout($BASEDIR, "all");
+		    make($BASEDIR, $INST_PREFIX, "all", "force-hard");
+		    if ($curmode =~ "devel") {
+			$ret = system("cd $BASEDIR && CPPFLAGS=-DHAVE_CDSCMP_DEVEL make install");
+		    }
+		    else {
+			$ret = system("cd $BASEDIR && make install");
+		    }
+		    die "[CDSCmp] fatal error\n" if ($ret != 0);
+		}
+		$i = $#args;
+	    }
+	    else { print "Unknown argument: $args[$i]\n"; }
+	}
+    }
+}
+
+
+# args:
+sub main
+{
+    parse_args (@_);
+}
+
+
+main(@ARGV);

@@ -1,0 +1,352 @@
+#!/usr/bin/perl -w
+##
+## cdscmp-compileproj: This file is part of the CDSCmp project.
+##
+## CDSCmp: A compiler suite for software mapping on heterogeneous
+## architectures
+##
+## Copyright (C) 2012,2013 University of California Los Angeles
+##
+## This program can be redistributed and/or modified under the terms
+## of the license specified in the LICENSE.txt file at the root of the
+## project.
+##
+## Contact: Jason Cong <cong@cs.ucla.edu>
+##
+##
+## @file: cdscmp-compileproj
+## @author: Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+##
+
+use Switch;
+use Term::ANSIColor;
+
+## Some global variables.
+$DRIVER = "";
+$ENVFILE = "";
+
+$DEBUG_LEVEL = 1;
+
+
+
+# sub print_map
+# {
+#     my (%config) = @_;
+#     ## Print config table.
+#     for $soft (keys %config) {
+# 	print "$soft: $config{$soft}\n";
+#     }
+# }
+
+
+# sub make_environment
+# {
+#     my (%config) = @_;
+#     my $env_val = "";
+#     ## Print config table.
+#     for $key (keys %config) {
+# 	$env_val = $env_val . "$SH_EXP_CMD ". $config{$key} . ";";
+#     }
+#     return $env_val;
+# }
+
+
+sub read_proj_file
+{
+    my ($file) = @_;
+    my %config_data;
+    open FILE, "$file" or die $!;
+    my $mode = "";
+    my $line;
+    while (<FILE>) {
+	if ($_ !~ /^#|^[\s\t]*\n/) {
+	    $_ =~ s/(.*)\n/$1/g;
+	    if ($_ =~ /^\[.*\]/) {
+		$mode = $_;
+		$mode =~ s/^\[(.*)\].*/$1/g;
+	    }
+	    else {
+		my @entry = split(/:/, $_);
+		$entry[0] =~ s/\s//g;
+		my $data = $entry[1];
+		my $i;
+		for ($i = 2; $i <= $#entry; $i++) {
+		    $data = $data . ":" . $entry[$i];
+		}
+		$config_data{$mode}{$entry[0]} = $data;
+	    }
+	}
+    }
+
+    #print_config(%config_data);
+
+    return %config_data;
+}
+
+
+sub compile_one
+{
+    my ($basedir, $compilername, @arguments) = @_;
+    $BDIR_MK = $basedir;
+    $INST_MK = $inst_prefix;
+    $CONFIGURE = "$BDIR_MK/driver/config/configure.cfg";
+    $ENV_FILE = "$BDIR_MK/driver/config/env.sh";
+    print (colored ("[CDSCmp-compiler] Using $compilername with CDSCmp. This takes a while...", "green green"), "\n");
+
+
+    my %cmap;
+    $cmap{"clean"} = "compile_clean.sh";
+    $cmap{"cncc"} = "compile_cncc.sh";
+    $cmap{"cdscgrhc"} = "compile_cdscgrhc.sh";
+    $cmap{"hcc"} = "compile_hc_c.sh";
+    $cmap{"cc"} = "compile_c_cpu.sh";
+    $cmap{"cxx"} = "compile_cpp_cpu.sh";
+    $cmap{"cuda"} = "compile_cuda.sh";
+    $cmap{"sdsl-gpu"} = "compile_sdsl_gpu.sh";
+    $cmap{"sdsl-cpu"} = "compile_sdsl_c.sh";
+    $cmap{"sdsl-cpu-poly"} = "compile_sdsl_c_polyopt.sh";
+    $cmap{"sdsl-fpga"} = "compile_sdsl_c_polyhls.sh";
+    $cmap{"link"} = "compile_link.sh";
+    $cmap{"run"} = "run_program.sh";
+    $cmap{"c-fpga"} = "compile_c_fpga.sh";
+    $cmap{"c-poly"} = "compile_c_polyopt.sh";
+    $cmap{"custom"} = "compile_custom.sh";
+    $cmap{"polyopt"} = "compile_polyopt.sh";
+    $cmap{"polyhls"} = "compile_polyhls.sh";
+
+
+    my @env_data = read_env_file($ENV_FILE);
+    #print_map(%env_data);
+    my $env_decl = make_environment(@env_data);
+    my $args = "";
+    shift(@arguments);
+    shift(@arguments);
+    foreach (@arguments)
+    {
+	$args = $args." ".$_;
+    }
+    if (! defined($cmap{$compilername}) || $compilername eq "help") {
+	if (! defined($cmap{$compilername})) {
+	    print (colored ("[CDSCmp-compiler] Pass $compilername does not exist.", "red red"), "\n");
+	}
+	print (colored ("[CDSCmp-compiler] List of available passes:", "white white"), "\n");
+	print (colored ("                  clean <step_names>", "white white"), "\n");
+	print (colored ("                  cncc <file.cnc>", "white white"), "\n");
+	print (colored ("                  hcc [cnc|cdscgr] <files.hc>", "white white"), "\n");
+	print (colored ("                  cc <C compiler binary> <files.c>", "white white"), "\n");
+	print (colored ("                  cxx <C++ compiler binary> <files.cc>", "white white"), "\n");
+	print (colored ("                  cuda <CUDA compiler binary> <files.cc>", "white white"), "\n");
+	print (colored ("                  sdsl-cpu <C++ compiler binary> <file.sdsl>", "white white"), "\n");
+	print (colored ("                  sdsl-gpu <CUDA compiler binary> <file.sdsl>", "white white"), "\n");
+	print (colored ("                  sdsl-poly <C compiler binary> <file.sdsl>", "white white"), "\n");
+	print (colored ("                  sdsl-fpga <C compiler binary> <file.sdsl>", "white white"), "\n");
+	print (colored ("                  c-poly <C compiler binary> <file.c>", "white white"), "\n");
+	print (colored ("                  link <linker binary> <output bin name> [linker options]", "white white"), "\n");
+	print (colored ("                  run <command>", "white white"), "\n");
+	print (colored ("================== Developer passes: ", "white white"), "\n");
+	print (colored ("                  custom <command>", "white white"), "\n");
+	print (colored ("                  polyopt <command>", "white white"), "\n");
+	print (colored ("                  polyhls <command>", "white white"), "\n");
+
+	exit (1);
+    }
+    my $val = system("$env_decl $BDIR_MK/driver/scripts/$cmap{$compilername} $args");
+
+}
+
+
+
+sub get_targets_from_desc
+{
+    my ($filename) = @_;
+    my $val = `cat $filename | grep '<instance name=' | grep '<instance name=' | grep -v  '^[ \t]*<!--' | sed -e 's/.*instance name="\\\(.*\\\)".*component.*/\\1/g' | sed -e 's/ //g'`;
+    my @res = split ('\n', $val);
+    return @res;
+}
+
+
+sub exec_command_comp
+{
+    my ($basedir, $script, $extra_args, $args) = @_;
+    my $env_f = "$basedir/driver/config/env.sh";
+    my @env_data = read_env_file($env_f);
+    my $env_decl = make_environment(@env_data);
+    $script =~ s/ //g;
+    #print "SCRIPT: $basedir/driver/scripts/$script $extra_args $args";
+    my $val = system("$env_decl $basedir/driver/scripts/$script $extra_args $args");
+    die "[CDSCmp] Error in $script\n" if ($val != 0);
+}
+
+
+
+sub compile_proj
+{
+    my ($basedir, $projfile, @all_args) = @_;
+#    $BDIR_MK = $basedir;
+#    $INST_MK = $inst_prefix;
+#    $CONFIGURE = "$BDIR_MK/driver/config/configure.cfg";
+#    $ENV_FILE = "$BDIR_MK/driver/config/env.sh";
+    my $compiler_desc_file = "$basedir/driver/config/compiler.desc";
+    print (colored ("[CDSCmp-compiler] Compiling $projfile with CDSCmp. This takes a while...", "green green"), "\n");
+
+    my $debug_verb = 0;
+
+    my $extra_args = "";
+    shift(@all_args);
+    shift(@all_args);
+    foreach (@all_args) {
+	$extra_args = $extra_args." ".$_;
+    }
+
+    ## 1. Read the project description file.
+    my %project_data = read_proj_file($projfile);
+    if ($debug_verb > 1) {
+	print_config(%project_data);
+    }
+
+    ## 2. Read the machine configuration file.
+    my ($filetype, $filename) = split(':', $project_data{'machine-desc'}{'desc'});
+    ## 3. Get the various targets to build.
+    my @targets = get_targets_from_desc($filename);
+
+    ## 4. Load compiler description.
+    my %compiler_data = read_proj_file($compiler_desc_file);
+    if ($debug_verb > 1) {
+	print_config(%compiler_data);
+    }
+    ## 5. Create compilation map.
+
+    ## 5.0 Stage 0: clean old files.
+    my $stages = "";
+    for my $step (keys %{$project_data{'steps'}}) {
+	$stages = $stages." ".$step;
+    }
+    exec_command_comp($basedir, 'compile_clean.sh', $extra_args, $stages);
+
+    ## 5.1 Stage 1: CnC translation
+    my @pipeline_type = split(':', $project_data{'cnc-description'}{'project'});
+    $pipeline_type[0] =~ s/ //g;
+    my $pipeline_script = $compiler_data{$pipeline_type[0]}{'CPU'};
+
+    if ($debug_verb > 1) {
+	print "CnC/CDSC-GR: $pipeline_type[1] with $pipeline_script\n";
+    }
+    exec_command_comp($basedir, $pipeline_script, $extra_args,
+		      $pipeline_type[1]);
+
+    ## 5.2 Stage 2: HC translation
+    my $hc_script = $compiler_data{'hc'}{'CPU'};
+    my $hc_translation_mode = $pipeline_type[0];
+    my $hc_stages = "";
+    for my $step (keys %{$project_data{'steps'}}) {
+	$hc_stages = $hc_stages." ".$step.".hc";
+    }
+    if ($debug_verb > 1) {
+	print "hc stages: $hc_stages\n";
+    }
+    $extra_args = $hc_translation_mode . " " . $extra_args;
+    exec_command_comp($basedir, $hc_script, $extra_args, $hc_stages);
+    $extra_args = $extra_args_base;
+
+    ## 5.3 Stage 3: step compilation
+    my $target_compiler;
+    foreach (@targets) {
+	my $target = $_;
+	$target =~ s/ //g;
+	my $extra_args_base = $extra_args;
+	for my $step (keys %{$project_data{'steps'}}) {
+	    my @step_info = split(':', $project_data{'steps'}{$step});
+	    $step_info[0] =~ s/ //g;
+
+	    if (! exists $compiler_data{$step_info[0]}{$target}) {
+		next;
+	    }
+
+	    if ($debug_verb > 1) {
+		print "filetype: $step_info[0], filename: $step_info[1]\n";
+		print "comp. cmd: $compiler_data{$step_info[0]}{$target}\n";
+	    }
+	    if ($step_info[0] eq "c")
+	    {
+		if (defined($project_data{'build-info'}{'c-compiler'}))
+		{
+		    $target_compiler = $project_data{'build-info'}{'c-compiler'};
+		}
+		else
+		{
+		    $target_compiler = $compiler_data{'default-compilers'}{'c-compiler'};
+		}
+
+		$extra_args = "$target_compiler "."$extra_args";
+	    }
+
+	    if ($step_info[0] eq "cpp")
+	    {
+		if (defined($project_data{'build-info'}{'cpp-compiler'}))
+		{
+		    $target_compiler = $project_data{'build-info'}{'cpp-compiler'};
+		}
+		else
+		{
+		    $target_compiler = $compiler_data{'default-compilers'}{'cpp-compiler'};
+		}
+
+		$extra_args = "$target_compiler "."$extra_args";
+	    }
+
+	    if ($step_info[0] eq "cu")
+	    {
+		if (defined($project_data{'build-info'}{'cuda-compiler'}))
+		{
+		    $target_compiler = $project_data{'build-info'}{'cuda-compiler'};
+		}
+		else
+		{
+		    $target_compiler = $compiler_data{'default-compilers'}{'cuda-compiler'};
+		}
+
+		$extra_args = "$target_compiler "."$extra_args";
+	    }
+
+	    if ($step_info[0] eq "sdsl.c")
+	    {
+		my $compname = "c-compiler";
+		if ($target eq "GPU") {
+		    $compname = "cuda-compiler";
+		}
+		if ($target eq "CPU") {
+		    $compname = "c-compiler";
+		}
+		    
+		if (defined($project_data{'build-info'}{$compname})) {
+		    $target_compiler = $project_data{'build-info'}{$compname};
+		}
+		else {
+		    $target_compiler = $compiler_data{'default-compilers'}{$compname};
+		}
+
+		$extra_args = "$target_compiler "."$extra_args";
+	    }
+
+
+	    exec_command_comp($basedir,
+			      $compiler_data{$step_info[0]}{$target},
+			      $extra_args,
+			      $step_info[1]);
+	    $extra_args = $extra_args_base;
+	}
+    }
+
+    ## 5.4 Stage 4: link
+    my $link_script = $compiler_data{'o'}{'CPU'};
+    my $target_bin = $project_data{'build-info'}{'output-bin'};
+    $target_compiler = $project_data{'build-info'}{'c-compiler'};
+    $extra_args = "$target_compiler "."$extra_args";
+    if ($debug_verb > 1) {
+	print "link cmd: $link_script\n";
+    }
+    exec_command_comp($basedir, $link_script, $extra_args, $target_bin);
+
+    #project_data{'cnc-pipeline'}{'start-step'};
+    print (colored ("[CDSCmp-compiler] Done", "green green"), "\n");
+}

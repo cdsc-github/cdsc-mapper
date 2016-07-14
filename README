@@ -1,0 +1,15 @@
+To install:
+
+* If you are a developer with SVN access at UCLA:
+$> ./install.sh devel
+$> export PATH=`pwd`/driver/scripts:$PATH
+
+* If you are a regular user:
+$> ./install.sh
+$> export PATH=`pwd`/driver/scripts:$PATH
+
+
+
+* Contact:
+Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+

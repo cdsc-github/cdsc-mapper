@@ -1,0 +1,333 @@
+2014-06-18  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/config/dist/configure.cfg,
+	* driver/config/base/configure.cfg: Rename cdscgl to cdscgr.
+
+2014-06-18  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/scripts/compile_cdscgrhc.sh: Update binary name from
+	cdscgltohc_t to cdscgrtohc_t.
+
+2014-04-16  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* configure.ac,
+	* doc/cdscmapper.texi,
+	* doc/overview.tex,
+	* doc/install.tex,
+	* doc/manual.tex,
+	* driver/config/dist/configure.cfg,
+	* driver/config/dist/driver.cfg,
+	* driver/config/base/configure.cfg,
+	* driver/scripts/cdscmp-util.in: Various minor updates in
+	documentation and dependence names.
+
+2013-07-29  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/scripts/compile_cdscgrhc.sh: New. Driver script for the new
+	CDSC-GR to HC translator.
+	* doc/passes.tex,
+	* doc/buildnew.tex: Update the documentation accordingly.
+
+	* driver/scripts/compile_hc_c.sh: Add a 'mode' argument (cnc or
+	cdscgl) to the hcc pass.
+
+	* driver/config/compiler.desc,
+	* driver/config/base/configure.cfg,
+	* driver/config/base/driver.cfg,
+	* driver/scripts/cdscmp-util.in,
+	* driver/scripts/cdscmp-compileproj: Minor updates to build by default
+	both CnC-to-HC and CDSC-GR-to-HC translators.
+
+2013-04-22  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/config/dist/configure.cfg,
+	* driver/config/dist/driver.cfg: Update addresses to use cadlab mirror.
+
+2013-04-17  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/config/base/configure.cfg,
+	* driver/config/base/driver.cfg: Add Clang-3.1.
+
+	* driver/scripts/compile_polyhls.sh: Add tiling by default.
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Minor updates.
+
+2013-03-22  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+	Polishing the various scripts and passes.
+
+	* install.sh: Improve the verbosity of requirements.
+	* cdsc-pipeline/emtv_cpu/utilities.h: Add missing proto.
+	* cdsc-pipeline/project.desc,
+	* driver/config/compiler.desc,
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/compile_polyopt.sh,
+	* driver/scripts/compile_sdsl_c.sh,
+	* driver/scripts/compile_c_polyopt.sh,
+	* driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_custom.sh,
+	* driver/scripts/compile_cuda.sh,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/compile_sdsl_c_polyhls.sh,
+	* driver/scripts/compile_clean.sh,
+	* driver/scripts/compile_cpp_cpu.sh,
+	* driver/scripts/compile_polyhls.sh,
+	* driver/scripts/compile_link.sh,
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Various updates. Make
+	scripts more homogeneous and more flexible.
+	* Makefile.am: Update accordingly.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+	Prepare distribution 0.1.0-alpha.
+	* configure.ac,
+	* Makefile.am,
+	* driver/config/dist/configure.cfg,
+	* driver/config/dist/driver.cfg,
+	* driver/scripts/compile_sdsl_c_polyhls.sh,
+	* README: Fixes.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/scripts/compile_sdsl_c_polyopt.sh,
+	* driver/scripts/compile_link.sh: Updates.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* install.sh: Improve verbosity, support devel and release modes.
+	* driver/config/dist/configure.cfg,
+	* driver/config/dist/driver.cfg: New. Configuration files for release.
+	* driver/config/base/configure.cfg,
+	* driver/config/base/driver.cfg: Add libtool as a dependence to ROSE.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* cdsc-pipeline/emtv_cpu/EMTV3D.c,
+	* cdsc-pipeline/denoise_step.c,
+	* cdsc-pipeline/registration_step.c,
+	* cdsc-pipeline/segmentation_step.c: Update to consistent image size
+	(128*128*128). Tested and validated on Sonata.
+	* cdsc-pipeline/pipeline.cnc,
+	* cdsc-pipeline/convey_system_platform.xml: Enable CPU and GPU.
+	* driver/scripts/cdscmp-compileproj: Fix a Perl-related bug.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+	Insert appropriate headers everywhere, clean the code.
+
+	* install.sh,
+	* cdsc-pipeline/project.desc,
+	* configure.ac,
+	* Makefile.am,
+	* driver/config/compiler.desc,
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/cdscmp-alternate,
+	* driver/scripts/compile_cncc.sh,
+	* driver/scripts/compile_sdsl_c.sh,
+	* driver/scripts/cdscmp-util.in,
+	* driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_c_fpga.sh,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/compile_sdsl_c_polyhls.sh,
+	* driver/scripts/compile_restdemo.sh,
+	* driver/scripts/run_program.sh,
+	* driver/scripts/compile_c_cpu.sh,
+	* driver/scripts/compile_cpp_cpu.sh,
+	* driver/scripts/cdscmp-checkout,
+	* driver/scripts/compile_hc_c.sh,
+	* driver/scripts/compile_link.sh,
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Insert headers.
+
+	* LICENSE.TXT: New. License file.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+	Replace the old demo by a new, working one. Does EMTV in CPU, and
+	denoise-registration-segmentation on CPU or GPU.
+
+	* cdsc-pipeline/emtv_cpu/Forward_Tracer_3D.h,
+	* cdsc-pipeline/emtv_cpu/define.h,
+	* cdsc-pipeline/emtv_cpu/TVupdate.h,
+	* cdsc-pipeline/emtv_cpu/CPU_Routine.h,
+	* cdsc-pipeline/emtv_cpu/Vector.c,
+	* cdsc-pipeline/emtv_cpu/EMTV3D.c,
+	* cdsc-pipeline/emtv_cpu/Backward_Tracer_3D.c,
+	* cdsc-pipeline/emtv_cpu/EMupdate.c,
+	* cdsc-pipeline/emtv_cpu/Array3D.c,
+	* cdsc-pipeline/emtv_cpu/GPU_Routine.h,
+	* cdsc-pipeline/emtv_cpu/Vector.h,
+	* cdsc-pipeline/emtv_cpu/EMTV3D.h,
+	* cdsc-pipeline/emtv_cpu/Backward_Tracer_3D.h,
+	* cdsc-pipeline/emtv_cpu/EMupdate.h,
+	* cdsc-pipeline/emtv_cpu/Array3D.h,
+	* cdsc-pipeline/emtv_cpu/config.h,
+	* cdsc-pipeline/emtv_cpu/utilities.c,
+	* cdsc-pipeline/emtv_cpu/utilities.h,
+	* cdsc-pipeline/emtv_cpu/Initialization.c,
+	* cdsc-pipeline/emtv_cpu/Forward_Tracer_3D.c,
+	* cdsc-pipeline/emtv_cpu/CPU_Routine.c,
+	* cdsc-pipeline/emtv_cpu/Initialization.h,
+	* cdsc-pipeline/emtv_cpu/TVupdate.c,
+	* cdsc-pipeline/denoise_step.c,
+	* cdsc-pipeline/project.desc,
+	* cdsc-pipeline/registration_step.c,
+	* cdsc-pipeline/pipeline.cnc,
+	* cdsc-pipeline/segmentation_step.c,
+	* cdsc-pipeline/data/phantom_data128,
+	* cdsc-pipeline/data/S.img,
+	* cdsc-pipeline/data/T.img,
+	* cdsc-pipeline/convey_system_platform.xml: New.
+
+	* demo-y3/hpt-cpu.xml,
+	* demo-y3/denoise.hc,
+	* demo-y3/denoise_step_modif.cpp,
+	* demo-y3/Common.hc,
+	* demo-y3/tv.hc,
+	* demo-y3/hpt-gpu.xml,
+	* demo-y3/Dispatch.h,
+	* demo-y3/registration_step.cpp,
+	* demo-y3/segmentation.hc,
+	* demo-y3/Dispatch.hc,
+	* demo-y3/em.hc,
+	* demo-y3/cpu_utils.h,
+	* demo-y3/hpt-gpu-fpga.xml,
+	* demo-y3/denoise_step.cpp,
+	* demo-y3/registration.hc,
+	* demo-y3/Context.c,
+	* demo-y3/hpt.dtd,
+	* demo-y3/segmentation_step.cpp,
+	* demo-y3/Context.h,
+	* demo-y3/dummy.c,
+	* demo-y3/Main.hc,
+	* demo-y3/Common.h: Delete.
+
+2013-03-10  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/scripts/compile_cncc.sh,
+	* driver/scripts/compile_sdsl_c.sh,
+	* driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/run_program.sh,
+	* driver/scripts/compile_c_cpu.sh,
+	* driver/scripts/compile_hc_c.sh,
+	* driver/scripts/compile_link.sh,
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Numerous edits to the
+	compilation scripts. Port to newest version of modules.
+
+2012-11-27  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+        * driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_sdsl_c_polyhls.sh,
+	* driver/scripts/compile_restdemo.sh,
+	* driver/scripts/run_program.sh,
+	* driver/scripts/compile_c_cpu.sh,
+	* driver/scripts/compile_link.sh,
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Check in latest
+	modifications for demo, from Sonata.
+
+2012-10-28  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/config/compiler.desc,
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/compile_cncc.sh,
+	* driver/scripts/cdscmp-util.in,
+	* driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/compile_sdsl_c_polyhls.sh,
+	* driver/scripts/compile_c_cpu.sh,
+	* driver/scripts/compile_hc_c.sh,
+	* driver/scripts/compile_link.sh,
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Script polishing.
+
+2012-10-28  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/config/configure.cfg,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_sdsl_c_polyopt.sh: Numerous updates.
+
+2012-10-25  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* install.sh,
+	* driver/config/configure.cfg,
+	* driver/config/driver.cfg,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/compile_cncc.sh,
+	* driver/scripts/compile_sdsl_c.sh,
+	* driver/scripts/cdscmp-compileproj,
+	* driver/scripts/compile_hc_c.sh,
+	* driver/scripts/compile_link.sh: Numerous updates. Install works
+	on JC8.
+
+2012-10-23  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* driver/config/configure.cfg,
+	* driver/config/driver.cfg: Update configuration to build all
+	project components.
+
+	* driver/scripts/cdscmp-util.in,
+	* driver/scripts/cdscmp-make: Updates.
+
+	* driver/scripts/cdscmp-compileproj: New. Provides 'compile'
+	driver mode.
+	* driver/config/compiler.desc: New. Compiler organization
+	description file.
+
+	* driver/scripts/compile_c_fpga.sh,
+	* driver/scripts/compile_sdsl_gpu.sh,
+	* driver/scripts/compile_cncc.sh,
+	* driver/scripts/compile_sdsl_c.sh,
+	* driver/scripts/compile_hc_c.sh,
+	* driver/scripts/compile_link.sh: New. Wrapper shell scripts to
+	invoke the various compilers.
+
+2012-09-27  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* install.sh: New. Basic installer for the CDSC mapper.
+	* driver/scripts/cdscmp-util: Delete.
+	* driver/scripts/cdscmp-util.in: New. Configurable build script.
+	* configure.ac: Update to build the script.
+	* driver/scripts/cdscmp-make: Minor fix.
+
+	* driver/config/env.sh: Delete.
+
+	* driver/config/configure.cfg,
+	* driver/config/driver.cfg: Polish the configuration files.
+
+2012-09-25  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+	Check-in a basic version building CDSCmp. Works on gypsymoth env.
+
+	* driver/config/configure.cfg,
+	* driver/config/driver.cfg: Temporary. Hard-wire the config.
+
+	* driver/config/env.sh: New. Store the environment variables to use.
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/cdscmp-util,
+
+	* driver/scripts/cdscmp-checkout: Create the custom mode. Validate
+	on boost/rose-hc/HC/PolyOpt. Temporary: hard-wire the abs. path in
+	-util.
+
+2012-09-12  Louis-Noel Pouchet  <pouchet@cs.ucla.edu>
+
+	* bootstrap.sh,
+	* configure.ac,
+	* doc,
+	* driver,
+	* driver/bin,
+	* driver/cdscmapper,
+	* driver/config,
+	* driver/config/base,
+	* driver/config/base/configure.cfg,
+	* driver/config/base/driver.cfg,
+	* driver/scripts,
+	* driver/scripts/cdscmp-alternate,
+	* driver/scripts/cdscmp-checkout,
+	* driver/scripts/cdscmp-make,
+	* driver/scripts/cdscmp-util,
+	* driver/src,
+	* driver/src/include,
+	* driver/src/include/driver,
+	* driver/src/include/driver/project.hpp,
+	* INSTALL,
+	* Makefile.am,
+	* README,
+	* tests: New. Initial Mapper architecture check-in.
+

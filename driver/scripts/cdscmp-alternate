@@ -1,0 +1,60 @@
+#!/usr/bin/perl -w
+##
+## cdscmp-alternate: This file is part of the CDSCmp project.
+##
+## CDSCmp: A compiler suite for software mapping on heterogeneous
+## architectures
+##
+## Copyright (C) 2012,2013 University of California Los Angeles
+##
+## This program can be redistributed and/or modified under the terms
+## of the license specified in the LICENSE.txt file at the root of the
+## project.
+##
+## Contact: Jason Cong <cong@cs.ucla.edu>
+##
+##
+## @file: cdscmp-alternate
+## @author: Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+##
+
+use Switch;
+use Term::ANSIColor;
+
+## Some global variables.
+$BDIR_ALT = ".";
+$CONFIGURE = "";
+$DRIVER = "";
+
+sub get_available_confs
+{
+    $val = `find $BDIR_ALT/config -maxdepth 1 -type d | grep -v "/\.svn" | grep -v "cdscmp/config\$"`;
+    $val =~ s/$BDIR_ALT\/config\///g;
+    @ret = split(/\n/, $val);
+
+    return @ret;
+}
+
+
+sub switch_conf
+{
+    my ($conf) = @_;
+    system ("cp -f $BDIR_ALT/config/$conf/* $BDIR_ALT/config");
+}
+
+
+sub alternate
+{
+    my ($basedir, $altconfig) = @_;
+    $BDIR_ALT = $basedir;
+    @avail_confs = get_available_confs();
+    my $i;
+    for ($i = 0; $i <= $#avail_confs; $i++) {
+	if ($avail_confs[$i] eq $altconfig) {
+	    switch_conf($altconfig);
+	    print "[CDSCmp-alternate] Alternate config loaded: $altconfig\n";
+	    return 0;
+	}
+    }
+    die "[CDSCmp-alternate] Unknown configuration: $altconfig\n";
+}

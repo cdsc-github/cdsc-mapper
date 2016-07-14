@@ -1,0 +1,212 @@
+#!/usr/bin/perl -w
+##
+## cdscmp-checkout: This file is part of the CDSCmp project.
+##
+## CDSCmp: A compiler suite for software mapping on heterogeneous
+## architectures
+##
+## Copyright (C) 2012,2013 University of California Los Angeles
+##
+## This program can be redistributed and/or modified under the terms
+## of the license specified in the LICENSE.txt file at the root of the
+## project.
+##
+## Contact: Jason Cong <cong@cs.ucla.edu>
+##
+##
+## @file: cdscmp-checkout
+## @author: Louis-Noel Pouchet <pouchet@cs.ucla.edu>
+##
+
+use Switch;
+use Term::ANSIColor;
+
+## Some global variables.
+$CONFIG_DATA = "";
+$CONFIG_DRIVER = "";
+$BDIR_CO = ".";
+$MODE = "";
+
+
+## Args: soft name, destination directory, url
+sub checkout_git
+{
+    my ($soft, $dir, $url) = @_;
+    my @urls = split(/@/, $url);
+    $url = $urls[0];
+    my $revision = "";
+    if ($#urls >= 1) {
+	$revision = $urls[1];
+    }
+    print "[CDSCmp-checkout] Git cloning/updating $soft (from $url) in $dir...\n";
+    system("if [ -d \"$BDIR_CO/$dir/$soft/.git\" ]; then cd $BDIR_CO/$dir/$soft && git pull && if ! [ -z \"$revision\" ]; then git checkout $revision; fi; else git clone $url $BDIR_CO/$dir/$soft; if ! [ -z \"$revision\" ]; then cd $BDIR_CO/$dir/$soft && git checkout $revision; cd -; fi; fi");
+}
+
+## Args: soft name, destination directory, url
+sub checkdiff_git
+{
+    my ($soft, $dir, $url) = @_;
+    print "[CDSCmp-checkout] Git diff $soft:\n";
+    system("cd $BDIR_CO/$dir/$soft && git diff | grep 'diff --git'");
+}
+
+
+## Args: soft name, destination directory, url
+sub checkout_wget
+{
+    my ($soft, $dir, $url) = @_;
+    print "[CDSCmp-checkout] Wgetting $soft (from $url) in $dir...\n";
+    system("mkdir -p $BDIR_CO/$dir && cd $BDIR_CO/$dir && wget -N $url");
+    my @tmp = split(/\//, $url);
+    my $filename = $tmp[$#tmp];
+    if ($filename =~ /.tar.gz$|.tgz$/) {
+	system("cd $BDIR_CO/$dir && tar xzf $filename");
+	$filename =~ s/.tar.gz$//g;
+	$filename =~ s/.tgz$//g;
+    }
+    else {
+	if ($filename =~ /.zip$/) {
+	    system("cd $BDIR_CO/$dir && unzip $filename");
+	    $filename =~ s/.zip$//g;
+	}
+    }
+    system("cd $BDIR_CO/$dir && mv $filename $soft");
+}
+
+
+## Args: soft name, destination directory, url
+sub checkout_local
+{
+    my ($soft, $dir, $url) = @_;
+    print "[CDSCmp-checkout] Copying $soft (from $url) in $dir...\n";
+    system("mkdir -p $BDIR_CO/$dir && cp $url $BDIR_CO/$dir");
+    my @tmp = split(/\//, $url);
+    my $filename = $tmp[$#tmp];
+    if ($filename =~ /.tar.gz$|.tgz$/) {
+	system("cd $BDIR_CO/$dir && tar xzf $filename");
+	$filename =~ s/.tar.gz$//g;
+	$filename =~ s/.tgz$//g;
+    }
+    else {
+	if ($filename =~ /.zip$/) {
+	    system("cd $BDIR_CO/$dir && unzip $filename");
+	    $filename =~ s/.zip$//g;
+	}
+    }
+    system("cd $BDIR_CO/$dir && mv $filename $soft");
+}
+
+
+## Args: soft name, destination directory, url, mode
+sub checkout_svn
+{
+    my ($soft, $dir, $url, $mode) = @_;
+    my $svnuser = "";
+    $svnuser = "--username lppcc --password lppcc" if ($mode =~ /base/);
+    print "[CDSCmp-checkout] SVN checkouting $soft (from $url) in $dir...\n";
+    my $svn_options = "";
+    $svn_options = $ENV{'SVN_OPTIONS'} if (defined($ENV{'SVN_OPTIONS'}));
+    system("svn co $svnuser $svn_options $url $BDIR_CO/$dir/$soft");
+}
+
+sub checkdiff_svn
+{
+    my ($soft, $dir, $url, $mode) = @_;
+    print "[CDSCmp-checkout] SVN diff $soft:\n";
+    my $svn_options = "";
+    $svn_options = $ENV{'SVN_OPTIONS'} if (defined($ENV{'SVN_OPTIONS'}));
+    system("svn $svn_options diff $BDIR_CO/$dir/$soft | grep Index");
+}
+
+
+## Args: destination directory (category), soft name, retrieve-method, location
+sub checkout_soft
+{
+    my ($category, $soft, $method, $link) = @_;
+    $category =~ s/\s//g;
+    checkout_svn ($soft, $category, $link, $MODE) if ($method =~ /svn/);
+    checkout_git ($soft, $category, $link) if ($method =~ /git/);
+    checkout_wget ($soft, $category, $link) if ($method =~ /wget/);
+    checkout_local ($soft, $category, $link) if ($method =~ /local/);
+}
+
+
+## Args: destination directory (category), soft name, retrieve-method, location
+sub checkdiff_soft
+{
+    my ($category, $soft, $method, $link) = @_;
+    $category =~ s/\s//g;
+    if ($method =~ /svn/) {
+	checkdiff_svn ($soft, $category, $link, $MODE);
+    }
+    else { 
+	if ($method =~ /git/) {
+	    checkdiff_git ($soft, $category, $link);
+	}
+	else {
+	    print "[CDSCmp-check-diff] Unsupported software. Only SVN and git repository are handled\n";
+	}
+    }
+}
+
+
+## Args: checkout method
+sub checkout
+{
+    my ($basedir, $repos) = @_;
+    $BDIR_CO = $basedir;
+    $CONFIG_DATA = "$BDIR_CO/driver/config/configure.cfg";
+    $CONFIG_DRIVER = "$BDIR_CO/driver/config/driver.cfg";
+    print (colored ("[CDSCmp-checkout] Checkout of CDSCmp. This may take a while...", "green green"), "\n");
+    print "[CDSCmp-checkout] Checkout: $repos\n";
+    my %config_data = read_config_file($CONFIG_DATA);
+    my %config_driver = read_config_file($CONFIG_DRIVER);
+    $MODE = $config_driver{"cdscmp-driver"}{"configuration"};;
+    if ($repos eq "all") {
+	for $soft (keys %config_data) {
+	    checkout_soft($config_data{$soft}{"category"}, $soft,
+			  $config_data{$soft}{"retrieve-method"},
+			  $config_data{$soft}{"location"});
+	}
+    }
+    else {
+	if (! defined($config_data{$repos})) {
+	    die "Unkown software $soft. Please update config/configure.cfg\n";
+	}
+	checkout_soft($config_data{$repos}{"category"}, $repos,
+		      $config_data{$repos}{"retrieve-method"},
+		      $config_data{$repos}{"location"});
+    }
+    print (colored ("[CDSCmp-checkout] Done", "green green"), "\n");
+}
+
+
+## Args: checkdiff method
+sub checkdiff
+{
+    my ($basedir, $repos) = @_;
+    $BDIR_CO = $basedir;
+    $CONFIG_DATA = "$BDIR_CO/driver/config/configure.cfg";
+    $CONFIG_DRIVER = "$BDIR_CO/driver/config/driver.cfg";
+    print (colored ("[CDSCmp-check-diff] Check edits of CDSCmp module(s). This may take a while...", "green green"), "\n");
+    my %config_data = read_config_file($CONFIG_DATA);
+    my %config_driver = read_config_file($CONFIG_DRIVER);
+    $MODE = $config_driver{"cdscmp-driver"}{"configuration"};;
+    if ($repos eq "all") {
+	for $soft (keys %config_data) {
+	    checkdiff_soft($config_data{$soft}{"category"}, $soft,
+			   $config_data{$soft}{"retrieve-method"},
+			   $config_data{$soft}{"location"});
+	}
+    }
+    else {
+	if (! defined($config_data{$repos})) {
+	    die "Unkown software $soft. Please update config/configure.cfg\n";
+	}
+	checkdiff_soft($config_data{$repos}{"category"}, $repos,
+		      $config_data{$repos}{"retrieve-method"},
+		      $config_data{$repos}{"location"});
+    }
+    print (colored ("[CDSCmp-check-diff] Done", "green green"), "\n");
+}
+
